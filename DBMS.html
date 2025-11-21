@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gate Smashers DBMS Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+        .lecture-checkbox:checked + div {
+            text-decoration: line-through;
+            color: #9ca3af;
+        }
+
+        .lecture-row { transition: all 0.2s ease; }
+        .lecture-row:hover { background-color: #f9fafb; }
+
+        /* Target Marker */
+        .target-row {
+            border-left: 4px solid #3b82f6 !important;
+            background-color: #eff6ff !important;
+            position: relative;
+        }
+        .target-badge { display: none; }
+        .target-row .target-badge { display: inline-block; }
+
+        /* Progress Bar */
+        .progress-bar-container {
+            height: 12px;
+            background-color: #e5e7eb;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            border-radius: 6px;
+            transition: width 0.5s ease-out;
+        }
+        .target-line {
+            position: absolute;
+            top: 0; bottom: 0; width: 2px;
+            background-color: #ef4444;
+            z-index: 10;
+            box-shadow: 0 0 4px rgba(0,0,0,0.3);
+        }
+
+        /* Tabs */
+        .tab-btn {
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            border-bottom-color: #3b82f6;
+            color: #2563eb;
+            background-color: #eff6ff;
+        }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Header / Dashboard -->
+    <div class="bg-white shadow-sm z-10 flex-none">
+        <div class="max-w-5xl mx-auto px-4 py-4">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900"><i class="fas fa-database text-blue-600 mr-2"></i>DBMS Playlist Tracker</h1>
+                    <p class="text-sm text-gray-500 mt-1">Target: Nov 14 — Feb 14</p>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                    <div class="text-xs text-blue-600 font-semibold uppercase">Lectures Done</div>
+                    <div class="text-2xl font-bold text-blue-800" id="count-display">0/139</div>
+                </div>
+                <div class="bg-purple-50 p-3 rounded-lg border border-purple-100">
+                    <div class="text-xs text-purple-600 font-semibold uppercase">Target Today</div>
+                    <div class="text-2xl font-bold text-purple-800" id="target-display">0</div>
+                </div>
+                <div class="bg-orange-50 p-3 rounded-lg border border-orange-100">
+                    <div class="text-xs text-orange-600 font-semibold uppercase">Daily Pace Needed</div>
+                    <div class="text-2xl font-bold text-orange-800" id="pace-display">0</div>
+                </div>
+                <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <div class="text-xs text-gray-500 font-semibold uppercase">Days Left</div>
+                    <div class="text-2xl font-bold text-gray-700" id="days-left-display">0</div>
+                </div>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="relative pt-2">
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                    <span>Start (Nov 14)</span>
+                    <span id="status-text" class="font-bold">Loading...</span>
+                    <span>End (Feb 14)</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div id="progress-fill" class="progress-bar-fill" style="width: 0%"></div>
+                    <div id="target-marker" class="target-line" style="left: 0%" title="You should be here"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="bg-white border-b border-gray-200 flex-none">
+        <div class="max-w-5xl mx-auto px-4 flex space-x-4 overflow-x-auto">
+            <button onclick="switchTab('lectures')" id="tab-lectures" class="tab-btn active py-3 px-4 text-sm font-semibold text-gray-600 hover:text-blue-600 focus:outline-none whitespace-nowrap">
+                <i class="fas fa-list-ul mr-2"></i>Lecture List
+            </button>
+            <button onclick="switchTab('concepts')" id="tab-concepts" class="tab-btn py-3 px-4 text-sm font-semibold text-gray-600 hover:text-blue-600 focus:outline-none whitespace-nowrap">
+                <i class="fas fa-brain mr-2"></i>Major Concepts Checklist
+            </button>
+            <button onclick="switchTab('remarks')" id="tab-remarks" class="tab-btn py-3 px-4 text-sm font-semibold text-gray-600 hover:text-blue-600 focus:outline-none whitespace-nowrap">
+                <i class="fas fa-chalkboard-teacher mr-2"></i>Mentor Remarks
+            </button>
+        </div>
+    </div>
+
+    <!-- Scrollable Content Area -->
+    <div class="flex-grow overflow-y-auto bg-gray-50">
+        <div class="max-w-5xl mx-auto px-4 py-6">
+            
+            <!-- Lectures View -->
+            <div id="view-lectures" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center sticky top-0 z-10">
+                    <h2 class="font-semibold text-gray-700">Lecture List</h2>
+                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Gate Smashers</span>
+                </div>
+                <ul id="lecture-list" class="divide-y divide-gray-100">
+                    <!-- JS will populate this -->
+                </ul>
+            </div>
+
+            <!-- Concepts View -->
+            <div id="view-concepts" class="hidden">
+                <!-- Add New Concept Form -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-2">Add New Concept</h3>
+                    <div class="flex gap-2">
+                        <input type="text" id="new-concept-title" placeholder="Concept Title (e.g. Deadlock Prevention)" class="flex-1 rounded-md border-gray-300 shadow-sm border px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <input type="text" id="new-concept-desc" placeholder="Short description..." class="flex-1 rounded-md border-gray-300 shadow-sm border px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500 hidden sm:block">
+                        <button onclick="addConcept()" class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors">Add</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+                    <div class="p-4 border-b border-gray-100 bg-indigo-50 flex justify-between items-center">
+                        <h2 class="font-semibold text-indigo-900">Important Concepts Checklist</h2>
+                        <span class="text-xs text-indigo-600 font-medium">Master these to ace the subject</span>
+                    </div>
+                    <ul id="concepts-list" class="divide-y divide-gray-100">
+                        <!-- JS will populate this -->
+                    </ul>
+                </div>
+                <div class="text-xs text-gray-500 p-2 text-center">
+                    These topics are the core of DBMS. Ensure you can explain them without looking at notes.
+                </div>
+            </div>
+
+            <!-- Mentor Remarks View -->
+            <div id="view-remarks" class="hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden h-full flex flex-col">
+                    <div class="p-4 border-b border-gray-100 bg-amber-50 flex justify-between items-center">
+                        <h2 class="font-semibold text-amber-900">Mentor Remarks & Notes</h2>
+                        <span class="text-xs text-amber-700 font-medium"><i class="fas fa-save mr-1"></i>Auto-saves</span>
+                    </div>
+                    <div class="p-0 flex-grow relative">
+                        <textarea 
+                            id="mentor-notes" 
+                            class="w-full h-96 p-6 text-gray-700 focus:outline-none resize-none"
+                            placeholder="Mentor can leave remarks, feedback, or review notes here..."
+                            oninput="saveMentorNotes()"
+                        ></textarea>
+                    </div>
+                    <div class="bg-gray-50 p-3 border-t border-gray-100 text-xs text-gray-500 flex justify-between">
+                        <span>Use this space for progress reviews or specific instructions.</span>
+                        <span id="save-indicator" class="text-green-600 hidden">Saved</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-8 mb-4 text-gray-400 text-xs">
+                Progress is saved automatically to your browser.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const currentYear = new Date().getFullYear();
+        const now = new Date();
+        let startYear = currentYear;
+        if (now.getMonth() < 2) { startYear = currentYear - 1; } 
+        else if (now.getMonth() > 10 && now.getDate() > 14) { startYear = currentYear; }
+
+        const START_DATE = new Date(startYear, 10, 14); // Nov 14
+        const END_DATE = new Date(startYear + 1, 1, 14); // Feb 14
+
+        // --- Data: Lectures ---
+        const lectures = [
+            "Lec-1: DBMS Syllabus for GATE, UGCNET, NIELIT, DSSSB",
+            "Lec-2: Introduction to DBMS (Database Management System)",
+            "Lec-3: File System vs DBMS | Disadvantages of File System",
+            "Lec-4: 2 tier and 3 tier Architecture with real life examples",
+            "Lec-5: What is Schema | How to define Schema",
+            "Lec-6: Three Schema Architecture | Three Level of Abstraction",
+            "Lec-7: What is Data Independence | Logical vs. Physical",
+            "Lec-8.0: Integrity Constraints in Database with Examples",
+            "Lec-8: What is CANDIDATE KEY and PRIMARY key",
+            "Lec-9: What is Primary Key in DBMS",
+            "Lec-10: Foreign Key in DBMS | Full Concept",
+            "Lec-11: Insert, Update & Delete from Foreign Key table",
+            "Lec-12: Question on Foreign Key",
+            "Lec-13: Super key in DBMS in HINDI",
+            "Lec-14: Introduction to ER model",
+            "Lec-15: Types of Attributes in ER Model",
+            "Lec-16: One to One relationship in DBMS",
+            "Lec-17: One to Many Relationship in DBMS",
+            "Lec-18: Many to Many Relationship in DBMS",
+            "Lec-19: Question on Minimize tables in ER Model",
+            "Lec-20: Introduction to Normalization",
+            "Lec-21: First Normal form in DBMS",
+            "Lec-22: Finding Closure of Functional dependency",
+            "Lec-23: Functional Dependency & its properties",
+            "Lec-24: Second Normal Form | 2NF",
+            "Lec-25: Third Normal Form in dbms",
+            "Lec-26: Boyce Codd Normal Form #BCNF",
+            "Lec-27: BCNF Always Ensures Dependency Preserving?",
+            "Lec-28: Lossless and Lossy Decomposition | 5NF",
+            "Lec-29: All Normal Forms with Real life examples",
+            "Lec-30: Minimal Cover in DBMS With Example",
+            "Lec-31: Practice Question on Normalization",
+            "Lec-32: How to find out the Normal form of a Relation",
+            "Lec-33: How to Solve Normalization Questions",
+            "Lec-34: Important Question Explanation on Normalization",
+            "Lec-35: Cover and Equivalence of Functional Dependencies",
+            "Lec-36: Dependency Preserving Decomposition",
+            "Lec-37: Dependency Preserving Decomposition Example 2",
+            "Lec-38: Introduction to Joins and its types",
+            "Lec-39: Natural Join operation with Example",
+            "Lec-40: Self Join operation with Example",
+            "Lec-41: Equi Join operation with Example",
+            "Lec-42: Left Outer Join operation with Example",
+            "Lec-43: Right Outer Join operation with Example",
+            "Lec-44: Introduction to Relational Algebra",
+            "Lec-45: Projection in Relational Algebra",
+            "Lec-46: Selection in Relational Algebra",
+            "Lec-47: Cross/Cartesian Product in Relational Algebra",
+            "Lec-48: Set Difference in Relational Algebra",
+            "Lec-49: Union Operation in Relational Algebra",
+            "Lec-50: Division Operation in Relational Algebra",
+            "Lec-51: Tuple Calculus in DBMS with examples",
+            "Lec-52: Introduction to Structured Query Language",
+            "Lec-53: All Types of SQL Commands with Example",
+            "Lec-54: Create table in SQL with execution",
+            "Lec-55: ALTER Command (DDL) in SQL",
+            "Lec-56: Difference between Alter and Update",
+            "Lec-57: Difference between Delete, Drop & Truncate",
+            "Lec-58: Constraints in SQL in Hindi",
+            "Lec-59: SQL Queries and Subqueries (part-1)",
+            "Lec-60: SQL Queries and Subqueries (part-2)",
+            "Lec-61: SQL Queries and Subqueries (part-3)",
+            "Lec-62: SQL Queries and Subqueries (part-4)",
+            "Lec-63: SQL Queries and Subqueries (part-5)",
+            "Lec-64: SQL Queries and Subqueries (part-6)",
+            "Lec-65: SQL Queries and Subqueries (part-7)",
+            "Lec-66: EXIST and NOT EXIST Subqueries(part-8)",
+            "Lec-67: SQL Aggregate Functions",
+            "Lec-68: Correlated Subquery in SQL with Example",
+            "Lec-69: Diff b/w Joins, Nested Subquery and Correlated",
+            "Lec-70: Find Nth Highest Salary in SQL",
+            "Lec-71: 3 Imp Questions on SQL basic Concepts",
+            "Lec-72: Introduction to PL-SQL in DBMS",
+            "Lec-73: Introduction to Transaction Concurrency",
+            "Lec-74: ACID Properties of a Transaction",
+            "Lec-75: Transaction States",
+            "Lec-76: What is Schedule | Serial Vs Parallel",
+            "Lec-77: All Concurrency Problems",
+            "Lec-78: Write-Read Conflict or Dirty Read Problem",
+            "Lec-79: Read-Write Conflict or Unrepeatable Read",
+            "Lec-80: Irrecoverable Vs Recoverable Schedules",
+            "Lec-81: Cascading vs Cascadeless Schedule",
+            "Lec-82: Introduction to Serializability",
+            "Lec-83: Conflict Equivalent Schedules with Example",
+            "Lec-84: Conflict Serializability | Precedence Graph",
+            "Lec-85: Why View Serializability is Used",
+            "Lec-86: Shared Exclusive Locking Protocol",
+            "Lec-87: Drawbacks in Shared/Exclusive Locking",
+            "Lec-88: 2 Phase Locking(2PL) Protocol",
+            "Lec-89: Drawbacks in 2 Phase Locking(2PL)",
+            "Lec-90: Strict 2PL, Rigorous 2PL and Conservative",
+            "Lec-91: Basic Timestamp Ordering Protocol",
+            "Lec-92: How to Solve Question on Timestamp Ordering",
+            "Lec-93: Why Indexing is used | Indexing Beginning",
+            "Lec-94: Numerical Example on I/O Cost in Indexing 1",
+            "Lec-95: Numerical Example on I/O Cost in Indexing 2",
+            "Lec-96: Types Of Indexes",
+            "Lec-97: Primary Index With Example",
+            "Lec-98: Clustered Index in Database with Example",
+            "Lec-99: Secondary Index in Database with Example",
+            "Lec-100: Introduction to B-Tree and its Structure",
+            "Lec-101: Insertion in B-Tree with example",
+            "Lec-102: How to find Order of B-Tree",
+            "Lec-103: Difference b/w B-Tree & B+Tree",
+            "Lec-104: Order of B+ Tree",
+            "Lec-105: Immediate Database Modification in DBMS",
+            "Lec-106: Deferred Database Modification in DBMS",
+            "Lec-107: Like Command in SQL with example",
+            "Lec-108: Basic PL-SQL Programming | Part-1",
+            "Lec-109: Basic PL-SQL Programming | Part-2",
+            "Lec-110: Single row and Multi row functions in SQL",
+            "Lec-111: Character functions in SQL",
+            "Lec-112: View in Database | Types of Views",
+            "Lec-113: How Aggregate Functions work on NULL",
+            "Lec-114: What is RAID? RAID 0, 1, 4, 5, 6, 10",
+            "Lec-115: Various objects in Database",
+            "Lec-116: Important Question explanation on ER Model",
+            "Lec-117: Very Imp. Questions on DBMS basic concepts",
+            "Lec-118: Question on Inner, Left, Right & Full Outer Joins",
+            "Lec-119: 4 Imp Questions on Advance DBMS",
+            "Lec-120: Important Question on Normalization (Schemas)",
+            "Lec-121: Important Question on Relational Algebra",
+            "Lec-122: Codd’s 12 Rules of RDBMS with examples",
+            "Lec-123: Top 15 SQL Interview Questions Answers",
+            "Lec-124: CREATE Command (DDL) in SQL",
+            "Lec-125: SEQUENCE in SQL with Syntax & Examples",
+            "Lec-126: How SQL Query executes?? Order of Execution",
+            "Lec-127: Introduction to Hadoop | Framework",
+            "Lec-128: Introduction to BIG Data in Hindi",
+            "Lec-129: Simple vs Complex vs Materialized Views",
+            "130: Foreign Key with On Delete Cascade with Execution",
+            "131: Procedures in PL-SQL | Local vs Stored",
+            "132: How to Fetch Data from Database using Procedures",
+            "133: What is Cursor in PL-SQL with example",
+            "134: %TYPE & %ROWTYPE in PL-SQL with Examples",
+            "135: Introduction to Weak Entity Set with Example",
+            "136: Rename Operator in Relational Algebra",
+            "137: Non Correlated Subquery in SQL with Example",
+            "138: WITH Clause in SQL | SQL CTE"
+        ];
+
+        // --- Data: Default Concepts ---
+        const defaultConcepts = [
+            { title: "Architecture & Basics", desc: "3-Schema Architecture, Data Independence, DDL/DML/DCL." },
+            { title: "Keys & Constraints", desc: "Primary, Candidate, Super, Foreign Keys, Referential Integrity." },
+            { title: "ER Modeling", desc: "Entities, Attributes, Relationships (1:1, 1:M, M:N), Weak Entities." },
+            { title: "Normalization", desc: "1NF, 2NF, 3NF, BCNF. Lossless Join & Dependency Preservation." },
+            { title: "Relational Algebra", desc: "Selection, Projection, Cartesian Product, Set Operations." },
+            { title: "SQL Joins", desc: "Inner, Left, Right, Full Outer Joins, Self Join." },
+            { title: "SQL Subqueries", desc: "Nested Queries, Correlated Subqueries, EXISTS/NOT EXISTS." },
+            { title: "Transaction Management", desc: "ACID Properties (Atomicity, Consistency, Isolation, Durability)." },
+            { title: "Concurrency Control", desc: "Serializability (Conflict/View), 2-Phase Locking (2PL), Deadlocks." },
+            { title: "Indexing", desc: "B-Trees, B+ Trees (Structure & Order), Primary vs Secondary Index." }
+        ];
+
+        // --- State Management ---
+        let checkedState = JSON.parse(localStorage.getItem('dbms_tracker_v1')) || [];
+        let checkedConcepts = JSON.parse(localStorage.getItem('dbms_tracker_concepts_v1')) || [];
+        let conceptsList = JSON.parse(localStorage.getItem('dbms_tracker_concepts_list')) || defaultConcepts;
+        let mentorNotes = localStorage.getItem('dbms_tracker_mentor_notes') || "";
+
+        // Initialize textarea
+        document.getElementById('mentor-notes').value = mentorNotes;
+
+        function saveState() {
+            localStorage.setItem('dbms_tracker_v1', JSON.stringify(checkedState));
+            localStorage.setItem('dbms_tracker_concepts_v1', JSON.stringify(checkedConcepts));
+            localStorage.setItem('dbms_tracker_concepts_list', JSON.stringify(conceptsList));
+            localStorage.setItem('dbms_tracker_mentor_notes', mentorNotes);
+        }
+
+        function resetData() {
+            if(confirm("Reset all progress?")) {
+                checkedState = [];
+                checkedConcepts = [];
+                conceptsList = defaultConcepts; // Reset concepts to default
+                mentorNotes = "";
+                document.getElementById('mentor-notes').value = "";
+                saveState();
+                render();
+            }
+        }
+
+        function toggleLecture(index) {
+            if (checkedState.includes(index)) {
+                checkedState = checkedState.filter(i => i !== index);
+            } else {
+                checkedState.push(index);
+            }
+            saveState();
+            render();
+        }
+
+        function toggleConcept(index) {
+            if (checkedConcepts.includes(index)) {
+                checkedConcepts = checkedConcepts.filter(i => i !== index);
+            } else {
+                checkedConcepts.push(index);
+            }
+            saveState();
+            render();
+        }
+
+        function addConcept() {
+            const titleEl = document.getElementById('new-concept-title');
+            const descEl = document.getElementById('new-concept-desc');
+            const title = titleEl.value.trim();
+            const desc = descEl.value.trim();
+
+            if (title) {
+                conceptsList.push({ title, desc });
+                titleEl.value = '';
+                descEl.value = '';
+                saveState();
+                render();
+            } else {
+                alert("Please enter a concept title.");
+            }
+        }
+
+        function saveMentorNotes() {
+            const notes = document.getElementById('mentor-notes').value;
+            mentorNotes = notes;
+            saveState();
+            
+            // Simple save indicator
+            const indicator = document.getElementById('save-indicator');
+            indicator.classList.remove('hidden');
+            setTimeout(() => indicator.classList.add('hidden'), 2000);
+        }
+
+        function switchTab(tabName) {
+            // Hide all views
+            document.getElementById('view-lectures').classList.add('hidden');
+            document.getElementById('view-concepts').classList.add('hidden');
+            document.getElementById('view-remarks').classList.add('hidden');
+            
+            // Remove active styles from buttons
+            document.getElementById('tab-lectures').classList.remove('active');
+            document.getElementById('tab-concepts').classList.remove('active');
+            document.getElementById('tab-remarks').classList.remove('active');
+
+            // Show selected
+            document.getElementById(`view-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        // --- Calculations ---
+        function getStats() {
+            const today = new Date();
+            let effectiveToday = today < START_DATE ? START_DATE : today;
+            if (effectiveToday > END_DATE) effectiveToday = END_DATE;
+
+            const totalDuration = END_DATE - START_DATE;
+            const elapsed = effectiveToday - START_DATE;
+            
+            let progressRatio = elapsed / totalDuration;
+            if (progressRatio < 0) progressRatio = 0;
+            if (progressRatio > 1) progressRatio = 1;
+
+            const totalLectures = lectures.length;
+            const targetIndex = Math.floor(progressRatio * totalLectures);
+            
+            const completedCount = checkedState.length;
+            const remainingCount = totalLectures - completedCount;
+            const msPerDay = 1000 * 60 * 60 * 24;
+            const daysRemaining = Math.max(0, Math.ceil((END_DATE - today) / msPerDay));
+            const videosPerDay = daysRemaining > 0 ? (remainingCount / daysRemaining).toFixed(1) : 0;
+
+            return { targetIndex, completedCount, totalLectures, progressRatio, daysRemaining, videosPerDay };
+        }
+
+        // --- Rendering ---
+        function render() {
+            const stats = getStats();
+            
+            // Update Dashboard
+            document.getElementById('count-display').innerText = `${stats.completedCount}/${stats.totalLectures}`;
+            document.getElementById('target-display').innerText = `Video #${stats.targetIndex + 1}`;
+            document.getElementById('pace-display').innerText = stats.videosPerDay;
+            document.getElementById('days-left-display').innerText = stats.daysRemaining;
+
+            // Update Status Bar
+            const percentComplete = (stats.completedCount / stats.totalLectures) * 100;
+            const targetPercent = stats.progressRatio * 100;
+            
+            document.getElementById('progress-fill').style.width = `${percentComplete}%`;
+            document.getElementById('target-marker').style.left = `${targetPercent}%`;
+            
+            const diff = stats.completedCount - (stats.targetIndex + 1);
+            const statusText = document.getElementById('status-text');
+            
+            if (diff >= 0) {
+                statusText.innerText = `Ahead by ${diff} videos`;
+                statusText.className = "font-bold text-green-600";
+                document.getElementById('progress-fill').className = "progress-bar-fill bg-green-500";
+            } else {
+                statusText.innerText = `Behind by ${Math.abs(diff)} videos`;
+                statusText.className = "font-bold text-red-600";
+                document.getElementById('progress-fill').className = "progress-bar-fill bg-blue-600";
+            }
+
+            // Render Lecture List
+            const listEl = document.getElementById('lecture-list');
+            listEl.innerHTML = '';
+            lectures.forEach((lec, idx) => {
+                const isTarget = (idx === stats.targetIndex);
+                const isChecked = checkedState.includes(idx);
+                
+                const li = document.createElement('li');
+                li.className = `lecture-row p-4 flex items-start space-x-3 ${isTarget ? 'target-row' : ''}`;
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = isChecked;
+                checkbox.className = "lecture-checkbox mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer";
+                checkbox.onclick = () => toggleLecture(idx);
+
+                const div = document.createElement('div');
+                div.className = "flex-1 text-sm select-none cursor-pointer";
+                div.onclick = (e) => { if(e.target !== checkbox) toggleLecture(idx); };
+                
+                let htmlContent = `<span class="font-medium mr-2 text-gray-400">#${idx+1}</span> ${lec}`;
+                if (isTarget) {
+                    htmlContent += `<br><span class="target-badge mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <i class="fas fa-map-marker-alt mr-1"></i> You should be here today
+                    </span>`;
+                    if (!window.hasScrolledToTarget) {
+                        setTimeout(() => li.scrollIntoView({behavior: "smooth", block: "center"}), 100);
+                        window.hasScrolledToTarget = true;
+                    }
+                }
+                div.innerHTML = htmlContent;
+                li.appendChild(checkbox);
+                li.appendChild(div);
+                listEl.appendChild(li);
+            });
+
+            // Render Concepts List
+            const conceptsEl = document.getElementById('concepts-list');
+            conceptsEl.innerHTML = '';
+            conceptsList.forEach((concept, idx) => {
+                const isChecked = checkedConcepts.includes(idx);
+                const li = document.createElement('li');
+                li.className = `p-4 flex items-start space-x-3 hover:bg-gray-50 transition-colors`;
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = isChecked;
+                checkbox.className = "mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer";
+                checkbox.onclick = () => toggleConcept(idx);
+
+                const div = document.createElement('div');
+                div.className = "flex-1 cursor-pointer";
+                div.onclick = (e) => { if(e.target !== checkbox) toggleConcept(idx); };
+
+                div.innerHTML = `
+                    <div class="font-semibold text-gray-800 ${isChecked ? 'line-through text-gray-400' : ''}">${concept.title}</div>
+                    <div class="text-sm text-gray-500 ${isChecked ? 'line-through text-gray-300' : ''}">${concept.desc}</div>
+                `;
+
+                li.appendChild(checkbox);
+                li.appendChild(div);
+                conceptsEl.appendChild(li);
+            });
+        }
+
+        // Initialize
+        render();
+
+    </script>
+</body>
+</html>
