@@ -19,7 +19,7 @@ The application is built as a single `index.html` file, demonstrating a powerful
 
 ## System Diagram
 ```mermaid
-graph TD
+flowchart TD
     subgraph "Clients"
         A[User's Browser]
         B[Mentor's Browser]
